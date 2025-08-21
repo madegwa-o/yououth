@@ -1,6 +1,7 @@
 import Image from "next/image";
 import ProtectedCall from "@/components/ProtectedCall";
 import { auth, signIn, signOut } from "@/auth";
+import getClientPromise from "@/lib/mongodb";
 
 export default async function Home() {
   const session = await auth();
@@ -27,12 +28,39 @@ export default async function Home() {
                 className="flex flex-col gap-2"
                 action={async (formData) => {
                   "use server";
-                  await signIn("credentials", formData);
+                  const email = String(formData.get("email") || "").trim().toLowerCase();
+                  if (!email) return;
+                  const client = await getClientPromise();
+                  const db = client.db();
+                  const users = db.collection("users");
+                  const existing = await users.findOne({ email });
+                  if (!existing) {
+                    await users.insertOne({ email, emailVerified: null, createdAt: new Date() });
+                  }
+                  await signIn("nodemailer", formData);
                 }}
               >
                 <input className="rounded border px-3 py-2 text-sm" type="email" name="email" placeholder="email@example.com" required />
-                <input className="rounded border px-3 py-2 text-sm" type="password" name="password" placeholder="password" required />
-                <button type="submit" className="rounded border px-3 py-2 text-sm">Sign in with credentials</button>
+                <button type="submit" className="rounded border px-3 py-2 text-sm">Sign up with email</button>
+              </form>
+              <form
+                className="flex flex-col gap-2"
+                action={async (formData) => {
+                  "use server";
+                  const email = String(formData.get("email") || "").trim().toLowerCase();
+                  if (!email) return;
+                  const client = await getClientPromise();
+                  const db = client.db();
+                  const users = db.collection("users");
+                  const existing = await users.findOne({ email });
+                  if (!existing) {
+                    return; // do not send link if user not found
+                  }
+                  await signIn("nodemailer", formData);
+                }}
+              >
+                <input className="rounded border px-3 py-2 text-sm" type="email" name="email" placeholder="email@example.com" required />
+                <button type="submit" className="rounded border px-3 py-2 text-sm">Log in with email</button>
               </form>
               <form
                 action={async () => {
@@ -40,7 +68,7 @@ export default async function Home() {
                   await signIn("google");
                 }}
               >
-                <button type="submit" className="rounded border px-3 py-2 text-sm">Sign in with Google</button>
+                <button type="submit" className="rounded border px-3 py-2 text-sm">Continue with Google</button>
               </form>
             </div>
           )}

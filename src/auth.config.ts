@@ -1,25 +1,15 @@
 import type { NextAuthConfig } from "next-auth";
-import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import Nodemailer from "next-auth/providers/nodemailer";
+import { MongoDBAdapter } from "@auth/mongodb-adapter";
+import getClientPromise from "@/lib/mongodb";
 
-// Minimal config using Credentials for demo and Google if env is set
 export const authConfig = {
+	adapter: MongoDBAdapter(getClientPromise()),
 	providers: [
-		Credentials({
-			name: "Credentials",
-			credentials: {
-				email: { label: "Email", type: "text" },
-				password: { label: "Password", type: "password" },
-			},
-			async authorize(credentials) {
-				const email = credentials?.email as string | undefined;
-				const password = credentials?.password as string | undefined;
-				// Demo-only: accept any non-empty email/password and return a basic user
-				if (email && password) {
-					return { id: email, email } as { id: string; email: string };
-				}
-				return null;
-			},
+		Nodemailer({
+			server: process.env.EMAIL_SERVER,
+			from: process.env.EMAIL_FROM,
 		}),
 		// Include Google if client id/secret exist
 		...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
@@ -31,8 +21,14 @@ export const authConfig = {
 			]
 			: []),
 	],
-	// Use JWT session strategy by default in v5
 	session: { strategy: "jwt" },
+	callbacks: {
+		async signIn({ user, account, email }) {
+			// Ensure the user exists in DB by email (adapter should handle creation for email/OAuth)
+			// This callback can be used to restrict sign-in if needed.
+			return true;
+		},
+	},
 } satisfies NextAuthConfig;
 
 export default authConfig; 
