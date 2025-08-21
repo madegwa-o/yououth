@@ -26,6 +26,7 @@ export const authConfig = {
 		async signIn({ user, account, email }) {
 			// Ensure the user exists in DB by email (adapter should handle creation for email/OAuth)
 			// This callback can be used to restrict sign-in if needed.
+			console.log('big babaa..')
 			return true;
 		},
 	},
